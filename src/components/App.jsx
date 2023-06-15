@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useState } from 'react';
 import { Container } from './App.styled';
 import { GlobalStyle } from './GlobalStyle';
 
@@ -7,83 +7,72 @@ import Searchbar from './Searchbar';
 import ImageGallery from './ImageGallery';
 import Button from './Button';
 import Loader from './Loader';
-import Modal from './Modal';
+import { Modal } from './Modal/Modal';
 
-export class App extends Component {
-  state = {
-    imgList: [],
-    page: 1,
-    name: '',
-    totalImg: null,
-    loader: false,
-    showModal: false,
-    showBtn: false,
-    largeImg: '',
-    tag: '',
-  };
+export const App = () => {
+  const [imgList, setImgList] = useState([]);
+  const [page, setPage] = useState(1);
+  const [name, setName] = useState('');
+  const [loader, setLoader] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showBtn, setShowBtn] = useState(false);
+  const [largeImg, setLargeImg] = useState('');
+  const [tag, setTag] = useState('');
 
-  async componentDidUpdate(_, prevState) {
-    const { name, page } = this.state;
-
-    if (prevState.name !== name || prevState.page !== page) {
-      this.setState({ loader: true });
-
+  useEffect(() => {
+    if (name === '') {
+      return;
+    }
+    async function fetchData() {
       try {
+        setLoader(true);
         const list = await fetchImg(name, page);
-
-        this.setState(state => ({
-          imgList: [...state.imgList, ...list.hits],
-          showBtn: page < Math.ceil(list.totalHits / 12),
-        }));
+        setImgList(prevState => [...prevState, ...list.hits]);
+        setShowBtn(page < Math.ceil(list.totalHits / 12));
       } catch (error) {
         return error;
       } finally {
-        this.setState({ loader: false });
+        setLoader(false);
       }
     }
-  }
-  searchQuery = name => {
-    this.setState({ name, page: 1, imgList: [] });
+    fetchData();
+  }, [name, page]);
+
+  const searchQuery = name => {
+    setName(name);
+    setPage(1);
+    setImgList([]);
   };
 
-  onLoad = () => {
-    this.setState(state => ({ page: state.page + 1 }));
+  const onLoad = () => {
+    setPage(prevState => prevState + 1);
   };
 
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({ showModal: !showModal }));
+  const toggleModal = () => {
+    setShowModal(prevState => !prevState);
   };
 
-  onClickImg = (link, tag) => {
-    this.setState({ largeImg: link, tag });
-    this.toggleModal();
+  const onClickImg = (link, tag) => {
+    setLargeImg(link);
+    setTag(tag);
+
+    toggleModal();
   };
 
-  render() {
-    const {
-      imgList,
+  return (
+    <Container>
+      <GlobalStyle />
+      <Searchbar onSubmit={searchQuery} />
+      <ImageGallery list={imgList} onClick={onClickImg} />
+      {loader && <Loader />}
 
-      loader,
-      showModal,
-      showBtn,
-      largeImg,
-      tag,
-    } = this.state;
-    return (
-      <Container>
-        <GlobalStyle />
-        <Searchbar onSubmit={this.searchQuery} />
-        <ImageGallery list={imgList} onClick={this.onClickImg} />
-        {loader && <Loader />}
+      {showBtn && <Button onClick={onLoad} />}
 
-        {showBtn && <Button onClick={this.onLoad} />}
-
-        {showModal && (
-          <Modal onShow={this.toggleModal}>
-            <img src={largeImg} alt={tag} />
-          </Modal>
-        )}
-      </Container>
-    );
-  }
-}
+      {showModal && (
+        <Modal onShow={toggleModal}>
+          <img src={largeImg} alt={tag} />
+        </Modal>
+      )}
+    </Container>
+  );
+};
